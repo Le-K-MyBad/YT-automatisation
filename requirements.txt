@@ -1,0 +1,7 @@
+yt-dlp
+ffmpeg-python
+PyYAML
+selenium
+webdriver-manager
+google-api-python-client
+google-auth-oauthlib

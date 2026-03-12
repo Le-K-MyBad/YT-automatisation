@@ -1,0 +1,24 @@
+# Configuration for YouTube automation
+
+# Path to relaxing overlay video (e.g., a static relaxing background)
+relaxing_video: "relaxing.mp4"
+
+# Output directory for processed videos
+# use a relative path inside the repo so you can see it easily (default was
+# "output" when the project was created).
+output_dir: "output"
+
+# YouTube API credentials
+# Use OAuth 2.0 client secrets JSON downloaded from Google Cloud Console
+youtube_client_secrets: "client_secrets.json"
+
+youtube_channel_id: ""
+
+# Optional: list of video URLs to process (can be overridden via CLI)
+video_urls: []
+
+# Optional: list of channel IDs to watch; the script will scrape the channels' web pages
+# using selenium to find the newest videos. This avoids the YouTube Data API entirely.
+# state.json is used to remember the last seen video per channel.
+channels:
+     - https://www.youtube.com/@Michou
