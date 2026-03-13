@@ -39,106 +39,164 @@ def load_config(path=CONFIG_PATH):
         return yaml.safe_load(f)
 
 
-def download_video(url, output_dir):
+def download_video(url, output_dir, config=None):
     """Download a video from YouTube.
     
-    For Shorts, we use Selenium to authenticate as a real browser.
-    For regular videos, we use yt-dlp.
+    For Shorts, we try multiple approaches to bypass bot detection.
     """
+    if config is None:
+        config = load_config()
+    
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Check if it's a Short
     is_short = "shorts" in url.lower()
     
-    if is_short and webdriver is not None and is_chrome_available():
-        print(f"Using Selenium to download Short: {url}")
-        return download_short_with_selenium(url, output_dir)
+    if is_short:
+        print(f"Detected Short: {url}")
+        # Try Selenium first if available
+        if webdriver is not None and is_chrome_available():
+            try:
+                print("Attempting download with Selenium...")
+                return download_short_with_selenium(url, output_dir)
+            except Exception as e:
+                print(f"Selenium failed: {e}. Trying enhanced yt-dlp...")
+        
+        # Try enhanced yt-dlp strategies for Shorts
+        cookies_file = config.get('youtube_cookies_file')
+        if cookies_file:
+            cookies_path = Path(cookies_file)
+            if not cookies_path.is_absolute():
+                cookies_path = Path(__file__).parent.parent / cookies_file
+            if cookies_path.exists():
+                print(f"Using cookies file: {cookies_path}")
+            else:
+                cookies_path = None
+        else:
+            cookies_path = None
+            
+        try:
+            return download_short_with_yt_dlp(url, output_dir, cookies_path)
+        except Exception as e:
+            print(f"Enhanced yt-dlp failed: {e}. Trying basic yt-dlp...")
     
     # Fallback: use yt-dlp with options to avoid bot detection
     print(f"Using yt-dlp to download: {url}")
     cmd = [
         "yt-dlp",
         "--no-check-certificates",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "-f",
         "best[ext=mp4]/best",
         "-o",
         str(output_dir / "%(title)s.%(ext)s"),
         url,
     ]
+    
+    # Add cookies if available
+    if config and config.get('youtube_cookies_file'):
+        cookies_file = config['youtube_cookies_file']
+        if not Path(cookies_file).is_absolute():
+            cookies_file = Path(__file__).parent.parent / cookies_file
+        if cookies_file.exists():
+            cmd.extend(["--cookies", str(cookies_file)])
+            print(f"Using cookies file: {cookies_file}")
+    
     subprocess.check_call(cmd)
     # return path to downloaded file (simplest heuristic: choose newest file)
     files = list(output_dir.glob("*"))
     return max(files, key=lambda p: p.stat().st_mtime)
 
 
-def download_short_with_selenium(url, output_dir):
-    """Download a YouTube Short using Selenium to bypass bot detection."""
-    if webdriver is None or Options is None:
-        raise RuntimeError("Selenium not available for Short download")
+def download_short_with_yt_dlp(url, output_dir, cookies_file=None):
+    """Download a YouTube Short using enhanced yt-dlp options."""
+    output_dir = Path(output_dir)
     
-    opts = Options()
-    opts.add_argument("--headless=new")
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-gpu")
-    opts.add_argument("--disable-blink-features=AutomationControlled")
-    opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+    print(f"Downloading Short with enhanced yt-dlp: {url}")
     
-    driver = None
-    try:
-        driver = webdriver.Chrome(ChromeDriverManager().install(), options=opts)
-        driver.get(url)
-        driver.implicitly_wait(10)
-        
-        # Wait for the video player to load and extract video info
-        # Try to find the video source or title
+    # Base command parts
+    base_cmd = [
+        "yt-dlp",
+        "--no-check-certificates",
+        "--retries", "3",
+        "--fragment-retries", "3",
+        "-f", "best[ext=mp4]/best",
+        "-o", str(output_dir / "%(title)s.%(ext)s"),
+    ]
+    
+    # Add cookies if provided
+    if cookies_file and Path(cookies_file).exists():
+        base_cmd.extend(["--cookies", str(cookies_file)])
+    
+    # Multiple fallback strategies for Shorts
+    strategies = [
+        {
+            "name": "Mobile Android with cookies",
+            "extra_args": [
+                "--user-agent", "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36",
+                "--add-header", "Referer:https://www.youtube.com/",
+                "--add-header", "Origin:https://www.youtube.com",
+                "--extractor-args", "youtube:player_client=android",
+            ]
+        },
+        {
+            "name": "Desktop with browser cookies",
+            "extra_args": [
+                "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "--add-header", "Referer:https://www.youtube.com/",
+                "--add-header", "Origin:https://www.youtube.com",
+                "--cookies-from-browser", "chrome",  # Try to get cookies from Chrome
+            ]
+        },
+        {
+            "name": "Basic with minimal headers",
+            "extra_args": [
+                "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            ]
+        }
+    ]
+    
+    for strategy in strategies:
         try:
-            title_elem = driver.find_element(By.CSS_SELECTOR, "h1.style-scope.ytd-rich-metadata-row-renderer")
-            title = title_elem.text or "short_video"
-        except Exception:
-            title = "short_video"
-        
-        # Get page source to extract JSON metadata
-        page_source = driver.page_source
-        
-        # Extract video ID from URL
-        video_id = url.split("/")[-1] if "/" in url else url
-        
-        # Use yt-dlp in a subprocess with the URL (Selenium+browser cookies might help)
-        # But we'll try a simpler approach: call yt-dlp with the URL directly
-        # since we've loaded it in a browser context
-        output_file = output_dir / f"{title}.mp4"
-        
-        cmd = [
-            "yt-dlp",
-            "-f", "best[ext=mp4]/best",
-            "-o", str(output_file),
-            "--no-check-certificates",
-            url,
-        ]
-        subprocess.check_call(cmd)
-        
-        return output_file if output_file.exists() else max(output_dir.glob("*"), key=lambda p: p.stat().st_mtime)
+            print(f"Trying strategy: {strategy['name']}")
+            cmd = base_cmd + strategy['extra_args'] + [url]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            
+            if result.returncode == 0:
+                print(f"✓ Strategy '{strategy['name']}' succeeded")
+                # Find the downloaded file
+                files = list(output_dir.glob("*.mp4"))
+                if files:
+                    latest_file = max(files, key=lambda p: p.stat().st_mtime)
+                    size = latest_file.stat().st_size
+                    print(f"Downloaded file: {latest_file} ({size} bytes)")
+                    if size > 10000:  # At least 10KB to be valid
+                        return latest_file
+                    else:
+                        print(f"File too small ({size} bytes), trying next strategy...")
+                        continue
+                else:
+                    print("No mp4 file found after successful download")
+                    continue
+            else:
+                print(f"✗ Strategy '{strategy['name']}' failed")
+                # Show some error details
+                error_lines = result.stderr.strip().split('\n')[-5:]  # Last 5 lines
+                for line in error_lines:
+                    if line.strip():
+                        print(f"  {line}")
+                continue
+                
+        except subprocess.TimeoutExpired:
+            print(f"✗ Strategy '{strategy['name']}' timed out")
+            continue
+        except Exception as e:
+            print(f"✗ Strategy '{strategy['name']}' error: {e}")
+            continue
     
-    except Exception as e:
-        print(f"Selenium download failed: {e}. Falling back to yt-dlp...")
-        # Fallback to regular yt-dlp
-        cmd = [
-            "yt-dlp",
-            "--no-check-certificates",
-            "-f",
-            "best[ext=mp4]/best",
-            "-o",
-            str(output_dir / "%(title)s.%(ext)s"),
-            url,
-        ]
-        subprocess.check_call(cmd)
-        files = list(output_dir.glob("*"))
-        return max(files, key=lambda p: p.stat().st_mtime)
-    
-    finally:
-        if driver:
-            driver.quit()
+    raise RuntimeError("All download strategies failed for YouTube Short")
 
 
 def merge_with_relaxing(original_path, relaxing_path, output_path):
@@ -226,10 +284,10 @@ def get_latest_videos_for_channel(youtube, channel_id, max_results=1):
 def is_chrome_available() -> bool:
     """Return True if a Chrome/Chromium binary exists in PATH.
 
-    We try to call `chromedriver --version` or `google-chrome --version` and
+    We try to call various chromium/chrome commands and
     consider success indicative that selenium might work.
     """
-    for cmd in ("chromedriver", "google-chrome", "chromium-browser", "chromium"):  # noqa
+    for cmd in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable"):  # noqa
         try:
             subprocess.check_call([cmd, "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return True
@@ -393,7 +451,7 @@ def main():
 
     for url in urls:
         print(f"Processing {url}")
-        orig = download_video(url, out_dir)
+        orig = download_video(url, out_dir, config)
         merged = out_dir / f"merged_{orig.name}"
         merge_with_relaxing(orig, relaxing, merged)
         print(f"Merged file at {merged}")

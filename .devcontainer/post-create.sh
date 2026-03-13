@@ -7,10 +7,27 @@ echo "=== YT-automatisation Setup ==="
 echo "Installing system dependencies..."
 apt-get update
 apt-get install -y \
-  chromium-browser \
-  chromium-chromedriver \
+  chromium \
+  chromium-driver \
   ffmpeg \
   git
+
+# Verify Chromium installation
+echo "Verifying Chromium installation..."
+if command -v chromium >/dev/null 2>&1; then
+    echo "✓ Chromium found at: $(which chromium)"
+    chromium --version
+else
+    echo "✗ Chromium not found, trying alternatives..."
+    # Try to install with different package names
+    apt-get install -y chromium-browser chromium-chromedriver || true
+    if command -v chromium-browser >/dev/null 2>&1; then
+        echo "✓ chromium-browser found at: $(which chromium-browser)"
+        chromium-browser --version
+    else
+        echo "✗ Chromium installation failed - YouTube Shorts may not work"
+    fi
+fi
 
 # Create Python virtual environment and install dependencies
 echo "Creating Python environment..."

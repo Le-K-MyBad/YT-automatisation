@@ -1,0 +1,17 @@
+# Example cookies.txt file for YouTube
+# This is what a cookies.txt file looks like
+# Replace with your actual exported cookies
+
+.youtube.com	TRUE	/	FALSE	1735689600	YSC	your_ys_cookie_value
+.youtube.com	TRUE	/	FALSE	1735689600	VISITOR_INFO1_LIVE	your_visitor_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	GPS	1
+.youtube.com	TRUE	/	FALSE	1735689600	PREF	your_pref_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	SID	your_sid_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	HSID	your_hsid_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	SSID	your_ssid_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	APISID	your_apisid_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	SAPISID	your_sapisid_cookie
+.youtube.com	TRUE	/	FALSE	1735689600	__Secure-1PSID	your_secure_psid
+.youtube.com	TRUE	/	FALSE	1735689600	__Secure-1PAPISID	your_secure_papisid
+.youtube.com	TRUE	/	FALSE	1735689600	__Secure-3PSID	your_secure_3psid
+.youtube.com	TRUE	/	FALSE	1735689600	__Secure-3PAPISID	your_secure_3papisid

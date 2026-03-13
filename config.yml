@@ -14,6 +14,10 @@ youtube_client_secrets: "client_secrets.json"
 
 youtube_channel_id: ""
 
+# Optional: YouTube cookies file for bypassing bot detection (especially for Shorts)
+# Can be exported from browser using extensions like "Get cookies.txt"
+youtube_cookies_file: ""
+
 # Optional: list of video URLs to process (can be overridden via CLI)
 video_urls: []
 

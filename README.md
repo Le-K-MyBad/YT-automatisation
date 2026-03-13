@@ -46,6 +46,32 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### YouTube Cookies (for Shorts) - IMPORTANT
+
+**YouTube Shorts require cookies to work!** Without them, downloads will fail with "Sign in to confirm you're not a bot".
+
+#### How to get YouTube cookies:
+
+1. **Install extension**: Get "Get cookies.txt LOCALLY" for Chrome/Firefox
+   - Chrome: https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndoehmjpmgmpgmcecfnghjpppnk
+   - Firefox: https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/
+
+2. **Login to YouTube**: Open YouTube in your browser and login
+
+3. **Export cookies**: Click the extension icon → "Export as cookies.txt"
+
+4. **Save file**: Save as `cookies.txt` in your project root
+
+5. **Update config.yml**:
+   ```yaml
+   youtube_cookies_file: "cookies.txt"
+   ```
+
+#### Alternative: Browser cookies
+You can also use `--cookies-from-browser chrome` if yt-dlp can access your browser profile.
+
+**Note**: Cookies expire after ~1 month. Re-export when downloads fail.
+
 ### Configuration
 
 Edit `config.yml` and set:

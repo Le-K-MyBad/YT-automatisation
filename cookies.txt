@@ -1,0 +1,13 @@
+# YouTube Cookies File
+# This file should contain your YouTube cookies to bypass bot detection
+# To get cookies:
+# 1. Install "Get cookies.txt LOCALLY" extension in Chrome/Firefox
+# 2. Go to YouTube and login
+# 3. Click extension icon and "Export as cookies.txt"
+# 4. Save the file as "cookies.txt" in this directory
+# 5. Update config.yml: youtube_cookies_file: "cookies.txt"
+#
+# The file should look like this:
+# .youtube.com	TRUE	/	FALSE	1735689600	YSC	your_ys_cookie_value
+# .youtube.com	TRUE	/	FALSE	1735689600	VISITOR_INFO1_LIVE	your_visitor_cookie
+# etc...
