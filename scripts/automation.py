@@ -199,6 +199,60 @@ def download_short_with_yt_dlp(url, output_dir, cookies_file=None):
     raise RuntimeError("All download strategies failed for YouTube Short")
 
 
+def download_short_with_selenium(url, output_dir):
+    """Download a YouTube Short using a Selenium browser session.
+
+    We open the Short page in Chrome, gather any available cookies, and
+    then use yt-dlp with those cookies to perform the actual download.
+    """
+    if webdriver is None or Options is None:
+        raise RuntimeError("selenium not installed; cannot download Short with Selenium")
+    if not is_chrome_available():
+        raise RuntimeError("no Chrome/Chromium binary found in PATH")
+
+    opts = Options()
+    opts.add_argument("--headless=new")
+    opts.add_argument("--no-sandbox")
+    opts.add_argument("--disable-gpu")
+    opts.add_argument("--disable-dev-shm-usage")
+
+    driver = None
+    cookies_path = None
+    try:
+        driver = webdriver.Chrome(ChromeDriverManager().install(), options=opts)
+        driver.get(url)
+        driver.implicitly_wait(10)
+
+        cookies = driver.get_cookies()
+        if cookies:
+            from tempfile import NamedTemporaryFile
+
+            with NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as tmp:
+                cookies_path = Path(tmp.name)
+                tmp.write("# Netscape HTTP Cookie File\n")
+                for cookie in cookies:
+                    domain = cookie.get("domain", "")
+                    include_subdomains = "TRUE" if domain.startswith(".") else "FALSE"
+                    path_ = cookie.get("path", "/")
+                    secure = "TRUE" if cookie.get("secure", False) else "FALSE"
+                    expiry = str(int(cookie.get("expiry", 0))) if cookie.get("expiry") else "0"
+                    name = cookie.get("name", "")
+                    value = cookie.get("value", "")
+                    tmp.write(f"{domain}\t{include_subdomains}\t{path_}\t{secure}\t{expiry}\t{name}\t{value}\n")
+
+            try:
+                return download_short_with_yt_dlp(url, output_dir, cookies_path)
+            finally:
+                if cookies_path and cookies_path.exists():
+                    cookies_path.unlink()
+
+        print("No cookies retrieved from Selenium; falling back to enhanced yt-dlp")
+        return download_short_with_yt_dlp(url, output_dir)
+    finally:
+        if driver:
+            driver.quit()
+
+
 def merge_with_relaxing(original_path, relaxing_path, output_path):
     # simple ffmpeg concat: put relaxing video overlay or background
     # here we assume we just concatenate for simplicity
